@@ -1,0 +1,42 @@
+networks:
+  app-network:
+    driver: bridge
+
+services:
+
+  clickhouse:
+    container_name: clickhouse
+    image: clickhouse/clickhouse-server:latest
+    env_file: .env
+    ports:
+      - 8123:8123
+      - 9000:9000
+    networks:
+      - app-network
+    volumes:
+      - ./scripts:/scripts
+      - ./sparkdata:/sparkdata
+      - clickhouse_log:/var/log/clickhouse-server:rw
+      - clickhouse_data:/var/lib/clickhouse:rw
+
+  spark:
+    container_name: spark
+    image: jupyter/all-spark-notebook:spark-3.5.0
+    command: sh -c '
+      pip install --upgrade pip &&
+      pip install -r /app/requirements.txt &&
+      start-notebook.sh --NotebookApp.token="" --NotebookApp.password=""'
+    ports:
+      - 8888:8888 # Jupyter web interface
+      - 4040:4040 # Spark UI
+    networks:
+      - app-network
+    working_dir: /app
+    depends_on:
+      - clickhouse
+    volumes:
+      - ./:/app
+
+volumes:
+  clickhouse_data:
+  clickhouse_log:

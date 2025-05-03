@@ -1,0 +1,4 @@
+.venv
+sparkdata
+__pycache__/
+logfile.log
