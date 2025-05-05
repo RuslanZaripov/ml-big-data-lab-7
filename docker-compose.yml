@@ -19,6 +19,22 @@ services:
       - clickhouse_log:/var/log/clickhouse-server:rw
       - clickhouse_data:/var/lib/clickhouse:rw
 
+  data-mart:
+    container_name: data-mart
+    image: sbtscala/scala-sbt:eclipse-temurin-23.0.2_7_1.10.11_3.6.4
+    ports:
+      - 14415:14415
+    networks:
+      - app-network
+    volumes:
+      - ./data-mart:/app
+      - ./sparkdata:/app/sparkdata
+    working_dir: /app
+    environment:
+    - SBT_OPTS=-Xmx2G -Xms1G
+    - JAVA_OPTS=-Xmx4G -Xms2G
+    # command: bash -c "sbt clean compile run"
+  
   spark:
     container_name: spark
     image: jupyter/all-spark-notebook:spark-3.5.0
