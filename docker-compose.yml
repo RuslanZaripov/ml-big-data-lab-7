@@ -15,10 +15,9 @@ services:
       - app-network
     volumes:
       - ./scripts:/scripts
-      - ./sparkdata:/sparkdata
+      - ./sparkdata:/var/lib/clickhouse/user_files/sparkdata
       - clickhouse_log:/var/log/clickhouse-server:rw
       - clickhouse_data:/var/lib/clickhouse:rw
-
   model:
     build: .
     container_name: model

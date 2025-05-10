@@ -1,13 +1,13 @@
 #!/bin/bash
 
 echo "Dropping table openfoodfacts if exists"
-clickhouse-client --query="DROP TABLE IF EXISTS openfoodfacts"
+clickhouse-client --progress --verbose --query="DROP TABLE IF EXISTS openfoodfacts"
 
 echo "Dropping table openfoodfacts_proc if exists"
-clickhouse-client --query="DROP TABLE IF EXISTS openfoodfacts_proc"
+clickhouse-client --progress --verbose --query="DROP TABLE IF EXISTS openfoodfacts_proc"
 
 echo "Creating table"
-clickhouse-client --query="
+clickhouse-client --progress --verbose --query="
 CREATE TABLE openfoodfacts (
   code String,
   url Nullable(String),
@@ -222,17 +222,17 @@ ORDER BY (code)
 PRIMARY KEY (code)"
 
 echo "Running ClickHouse import with statistics..."
-clickhouse-client \
-  --progress \
-  --verbose \
+clickhouse-client --progress --verbose \
   --query="
 SET input_format_allow_errors_num = 1000;
 SET input_format_tsv_empty_as_default = 1;
 INSERT INTO openfoodfacts 
-FROM INFILE '/sparkdata/en.openfoodfacts.org.products.csv' 
-FORMAT TSVWithNames;"
+SELECT * FROM file(
+  '/var/lib/clickhouse/user_files/sparkdata/en.openfoodfacts.org.products.csv', 
+  'TSVWithNames'
+) LIMIT 5000;"
 
 echo -e "\nAdding prediction column..."
-clickhouse-client --query="
+clickhouse-client --progress --verbose --query="
 ALTER TABLE openfoodfacts 
 ADD COLUMN prediction Nullable(String) DEFAULT NULL;"
