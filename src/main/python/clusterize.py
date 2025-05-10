@@ -12,11 +12,9 @@ sys.path.append(os.environ['SPARK_HOME'] + '/python/lib/py4j-0.10.9.7-src.zip')
 
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
-from pyspark.sql.functions import col
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.clustering import KMeans
 from pyspark.ml.evaluation import ClusteringEvaluator
-from pyspark.sql.types import FloatType
 
 SHOW_LOG = True
 
