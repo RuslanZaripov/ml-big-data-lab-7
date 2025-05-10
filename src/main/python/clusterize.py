@@ -4,7 +4,6 @@ import argparse
 import configparser
 from logger import Logger
 from functools import reduce
-from dotenv import load_dotenv
 
 sys.path.append(os.environ['SPARK_HOME'] + '/python')
 sys.path.append(os.environ['SPARK_HOME']+ '/python/build')
@@ -28,16 +27,19 @@ class Clusterizer():
         self.config = configparser.ConfigParser()
         self.log = logger.get_logger(__name__)
         
-        load_dotenv()
-        
-        IP_ADDRESS = os.environ["CLICKHOUSE_IP_ADDRESS"]
-        PORT = os.environ["CLICKHOUSE_PORT"]
-        self.USER = os.environ["CLICKHOUSE_USER"]
-        self.PASSWORD = os.environ["CLICKHOUSE_PASSWORD"]
-        self.DATABASE = os.environ["CLICKHOUSE_DATABASE"]
-        PROTOCOL = os.environ["CLICKHOUSE_PROTOCOL"]
-        self.TABLE = "openfoodfacts_proc"
         spark_config_apth = 'conf/spark.ini'
+        self.config = configparser.ConfigParser()
+        self.config.optionxform = str
+        self.config.read(spark_config_apth)
+        
+        self.TABLE = "openfoodfacts_proc"
+        
+        IP_ADDRESS = self.config["clickhouse"]["clickhouse_ip_address"]
+        PORT = self.config["clickhouse"]["clickhouse_port"]
+        self.USER = self.config["clickhouse"]["clickhouse_user"]
+        self.PASSWORD = self.config["clickhouse"]["clickhouse_password"]
+        self.DATABASE = self.config["clickhouse"]["clickhouse_database"]
+        
         self.numParitions = numParitions # from 1 to 100
         socket_timeout = 300000
         
@@ -52,10 +54,6 @@ class Clusterizer():
         ]
         self.metadata_cols = ['code']
         self.feature_cols = [c for c in self.useful_cols if c not in self.metadata_cols]
-        
-        self.config = configparser.ConfigParser()
-        self.config.optionxform = str
-        self.config.read(spark_config_apth)
         
         conf = SparkConf()
         config_params = list(self.config['spark'].items())
@@ -109,6 +107,8 @@ class Clusterizer():
         
     
     def run(self):
+        self.log.info(f"creds: user={self.USER} pass={self.PASSWORD}")
+        
         df = self.spark.read \
             .format('jdbc') \
             .option('driver', self.driver) \

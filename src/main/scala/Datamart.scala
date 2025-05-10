@@ -3,10 +3,14 @@ import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.FloatType
 import org.apache.spark.sql.DataFrame
 import java.util.logging.{Level, Logger}
+import java.util.Properties
+import java.io.FileInputStream
+import scala.collection.JavaConverters._
 
 object Datamart {
   private val logger = Logger.getLogger(getClass.getName)
 
+  private val config_file_path = "conf/spark.ini"
   private val driver = "com.clickhouse.jdbc.ClickHouseDriver"
   private val init_table_name = "openfoodfacts"
   private val proc_table_name = s"${init_table_name}_proc"
@@ -21,34 +25,48 @@ object Datamart {
   )
   private val metadataCols = Seq("code")
 
-  private val config = ConfigLoader
-    .loadClickHouseConfig()
-    .fold(
-      failures => throw new RuntimeException(failures.prettyPrint()),
-      identity
-    )
+  private def loadPropertiesFromFile(
+      filePath: String,
+      prefix: String
+  ): Map[String, String] = {
+    val props = new Properties()
+    props.load(new FileInputStream(filePath))
+    props.asScala.collect {
+      case (k, v) if k.startsWith(prefix) => k -> v
+    }.toMap
+  }
+
+  private val clickhousePairs =
+    loadPropertiesFromFile(config_file_path, "clickhouse")
+
+  private val clickhouseIpAddress =
+    clickhousePairs.get("clickhouse_ip_address").get
+  private val clickhousePort =
+    clickhousePairs.get("clickhouse_port").get
+  private val clickhouseDatabase =
+    clickhousePairs.get("clickhouse_database").get
+  private val clickhouseUser =
+    clickhousePairs.get("clickhouse_user").get
+  private val clickhousePassword =
+    clickhousePairs.get("clickhouse_password").get
 
   private def parseArgs(args: Array[String]): Set[String] = {
     args.map(_.toLowerCase).toSet
   }
 
   private val url =
-    s"jdbc:ch://${config.clickhouseIpAddress}:${config.clickhousePort}/${config.clickhouseDatabase}"
+    s"jdbc:ch://${clickhouseIpAddress}:${clickhousePort}/${clickhouseDatabase}"
 
   private def createSparkSession(): SparkSession = {
-    SparkSession
+    val sparkPairs = loadPropertiesFromFile(config_file_path, "spark.")
+
+    var builder: SparkSession.Builder = SparkSession
       .builder()
       .appName("FoodDataClusterizer")
-      .config("spark.master", "local[*]")
-      .config("spark.driver.memory", "2g")
-      .config("spark.executor.memory", "1g")
-      .config("spark.executor.instances", "2")
-      .config("spark.executor.cores", "2")
-      .config("spark.dynamicAllocation.enabled", "true")
-      .config("spark.dynamicAllocation.minExecutors", "1")
-      .config("spark.dynamicAllocation.maxExecutors", "5")
-      .config("spark.sql.execution.arrow.pyspark.enabled", "true")
-      .getOrCreate()
+
+    sparkPairs.foreach { case (k, v) => builder = builder.config(k, v) }
+
+    builder.getOrCreate()
   }
 
   private def readTable(spark: SparkSession, tableName: String): DataFrame = {
@@ -56,8 +74,8 @@ object Datamart {
       .format("jdbc")
       .option("driver", driver)
       .option("url", url)
-      .option("user", config.clickhouseUser)
-      .option("password", config.clickhousePassword)
+      .option("user", clickhouseUser)
+      .option("password", clickhousePassword)
       .option("query", s"SELECT * FROM $tableName")
       .load()
   }
@@ -93,8 +111,8 @@ object Datamart {
       .option("driver", driver)
       .option("url", url)
       .option("dbtable", proc_table_name)
-      .option("user", config.clickhouseUser)
-      .option("password", config.clickhousePassword)
+      .option("user", clickhouseUser)
+      .option("password", clickhousePassword)
       .option("createTableOptions", "ENGINE=MergeTree() ORDER BY code")
       .save()
   }
@@ -117,15 +135,15 @@ object Datamart {
       .option("driver", driver)
       .option("url", url)
       .option("dbtable", init_table_name)
-      .option("user", config.clickhouseUser)
-      .option("password", config.clickhousePassword)
+      .option("user", clickhouseUser)
+      .option("password", clickhousePassword)
       .option("createTableOptions", "ENGINE=MergeTree() ORDER BY code")
       .save()
   }
 
   def main(args: Array[String]): Unit = {
-    logger.info(s"Configuration: $config")
     logger.info(s"jdbc connection url: $url")
+    logger.info(s"creds: user=$clickhouseUser pass=$clickhousePassword")
 
     val options = parseArgs(args)
     logger.info(s"Options $options")

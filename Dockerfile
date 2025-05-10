@@ -11,8 +11,6 @@ ADD https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.8.5/clickhou
 COPY requirements.txt .
 COPY src ./src
 COPY conf ./conf
-COPY application.conf .
-COPY .env .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
