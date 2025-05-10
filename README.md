@@ -21,10 +21,6 @@ docker logs --tail 3 pyspark-notebook
 ### Steps
 
 ```bash
-docker exec spark python src/create_database.py \
-    --csv-path ./sparkdata/en.openfoodfacts.org.products.csv \
-    --delimiter '\t' \
-    --table-name openfoodfacts
-docker exec clickhouse /scripts/seed_db.sh
-docker exec spark python src/clusterize.py --numPartitions 30
+docker exec -it clickhouse /scripts/seed_db.sh
+docker compose up --build
 ```

@@ -113,7 +113,7 @@ object Datamart {
 
     new_df.write
       .format("jdbc")
-      .mode("overwrite")
+      .mode("append")
       .option("driver", driver)
       .option("url", url)
       .option("dbtable", init_table_name)

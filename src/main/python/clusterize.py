@@ -1,11 +1,11 @@
 import os
+import sys
 import argparse
 import configparser
 from logger import Logger
 from functools import reduce
 from dotenv import load_dotenv
 
-import sys,os
 sys.path.append(os.environ['SPARK_HOME'] + '/python')
 sys.path.append(os.environ['SPARK_HOME']+ '/python/build')
 sys.path.append(os.environ['SPARK_HOME'] + '/python/pyspark')

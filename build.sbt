@@ -1,4 +1,3 @@
-
 // The simplest possible sbt build file is just one line:
 
 // scalaVersion := "2.13.12"
@@ -20,7 +19,6 @@
 // Note, it's not required for you to define these three settings. These are
 // mostly only necessary if you intend to publish your library's binaries on a
 // place like Sonatype.
-
 
 // Want to use a published library in your project?
 // You can define other libraries as dependencies in your build like this:
@@ -82,24 +80,17 @@ val PureConfig = "0.17.1"
 lazy val root = (project in file("."))
   .settings(
     organization := "ch.epfl.scala",
-    name := "datamart",
+    name := "spark-lab",
     version := "0.0.1-SNAPSHOT",
     scalaVersion := "2.12.15",
     libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-core" % SparkVersion,
       "org.apache.spark" %% "spark-sql" % SparkVersion,
       "com.github.pureconfig" %% "pureconfig" % PureConfig,
-      "com.clickhouse" % "clickhouse-jdbc" % "0.8.5" classifier "all",
-      "com.clickhouse.spark" %% "clickhouse-spark-runtime-3.5" % "0.8.1",
-    //   "com.clickhouse" % "clickhouse-client" % "0.7.0",
-    //   "com.clickhouse" % "clickhouse-http-client" % "0.7.0",
-    //   "org.apache.httpcomponents.client5" % "httpclient5" % "5.2.1",
-    //   "com.clickhouse" % "clickhouse-jdbc" % {{ clickhouse_jdbc_version }} classifier "all",
-    //   "com.clickhouse.spark" %% clickhouse-spark-runtime-{{ spark_binary_version }}_{{ scala_binary_version }} % {{ stable_version }},
     ),
     assembly / assemblyMergeStrategy := {
-        case PathList("META-INF", _*) => MergeStrategy.discard
-        case _                        => MergeStrategy.first
+      case PathList("META-INF", _*) => MergeStrategy.discard
+      case _                        => MergeStrategy.first
     },
-    assembly / assemblyJarName := "assemblyApp.jar",
+    assembly / assemblyJarName := "assemblyApp.jar"
   )

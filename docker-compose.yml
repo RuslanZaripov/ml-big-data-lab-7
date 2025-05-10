@@ -18,36 +18,17 @@ services:
       - ./sparkdata:/sparkdata
       - clickhouse_log:/var/log/clickhouse-server:rw
       - clickhouse_data:/var/lib/clickhouse:rw
-  
-  data-mart:
-    container_name: data-mart
-    image: apache/spark:3.5.5-scala2.12-java11-python3-r-ubuntu
-    command: bash -c "cd data-mart 
-        && /opt/spark/bin/spark-submit target/scala-2.12/assemblyApp.jar preprocess"
-    tty: true  # equivalent to -t in docker run
-    stdin_open: true  # equivalent to -i in docker run
-    ports:
-      - "4040:4040"  # Spark UI port
-    networks:
-      - app-network
-    volumes:
-      - ./:/app
-    working_dir: /app
-    depends_on:
-      - clickhouse
 
-  model: 
+  model:
     build: .
     container_name: model
     image: model:latest
     ports:
-      - "4040:4040"  # Spark UI port
+      - 4040:4040
     networks:
       - app-network
     depends_on:
-      data-mart: 
-        condition: service_completed_successfully
-  
+      - clickhouse
   # spark:
   #   container_name: spark
   #   image: jupyter/all-spark-notebook:spark-3.5.0
