@@ -1,26 +1,54 @@
 # ml-big-data-lab-7
 
-## Description
+## Цель работы
 
-Stack: Scala, Cassandra, PySpark
+- Получить навыки разработки витрины данных и последующей её интеграции
 
-## PySpark configuration
+## Stack
 
-- execute the following command to know which host port has been mapped to the container's port 8888
-
-```bash
-docker port pyspark-notebook 8888
-```
-
-- fetch the notebook token. Your output should resemble this URL: `http://127.0.0.1:8888/lab?token=YOUR_TOKEN_HERE`
-
-```bash
-docker logs --tail 3 pyspark-notebook
-```
+- Scala, Cassandra, PySpark
 
 ### Steps
 
 ```bash
 docker exec -it clickhouse /scripts/seed_db.sh
 docker compose up --build
+```
+
+## Project Structure
+
+```text
+.
+├── Dockerfile
+├── README.md
+├── build.sbt
+├── conf
+│   └── spark.ini
+├── docker-compose.yml
+├── entrypoint.sh
+├── notebooks
+│   ├── openfoodfacts_clustering.ipynb
+│   ├── openfoodfacts_preprocessing.ipynb
+│   └── word_count.ipynb
+├── project
+│   ├── build.properties
+│   └── plugins.sbt
+├── requirements.txt
+├── scripts
+│   └── seed_db.sh
+├── sparkdata
+│   ├── en.openfoodfacts.org.products.csv
+│   └── googleplaystore_user_reviews.csv
+├── src
+│   └── main
+│       ├── python
+│       │   ├── __pycache__
+│       │   ├── clusterize.py
+│       │   └── logger.py
+│       └── scala
+│           └── Datamart.scala
+└── static
+    ├── Лабораторная работа 5 (весна 2025).pdf
+    ├── Лабораторная работа 6 (весна 2025).pdf
+    └── Лабораторная работа 7 (весна 2025).pdf
 ```
