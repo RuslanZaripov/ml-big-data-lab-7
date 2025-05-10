@@ -1,4 +1,2 @@
-clickhouse-driver
 python-dotenv
-pandas
-tqdm
+numpy

@@ -1,5 +1,11 @@
 #!/bin/bash
 
+echo "Dropping table openfoodfacts if exists"
+clickhouse-client --query="DROP TABLE IF EXISTS openfoodfacts"
+
+echo "Dropping table openfoodfacts_proc if exists"
+clickhouse-client --query="DROP TABLE IF EXISTS openfoodfacts_proc"
+
 echo "Creating table"
 clickhouse-client --query="
 CREATE TABLE openfoodfacts (
@@ -212,6 +218,7 @@ CREATE TABLE openfoodfacts (
   acidity_100g Nullable(String)
 )
 ENGINE = MergeTree()
+ORDER BY (code)
 PRIMARY KEY (code)"
 
 echo "Running ClickHouse import with statistics..."
@@ -228,4 +235,4 @@ FORMAT TSVWithNames;"
 echo -e "\nAdding prediction column..."
 clickhouse-client --query="
 ALTER TABLE openfoodfacts 
-ADD COLUMN prediction Nullable(UInt64) DEFAULT NULL;"
+ADD COLUMN prediction Nullable(String) DEFAULT NULL;"

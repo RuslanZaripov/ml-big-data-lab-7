@@ -2,7 +2,7 @@
 
 ## Description
 
-Stack: Cassandra, PySpark
+Stack: Scala, Cassandra, PySpark
 
 ## PySpark configuration
 

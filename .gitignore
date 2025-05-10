@@ -62,3 +62,6 @@ coursier
 
 # Sourcegraph specific
 index.scip
+
+pyspark_venv
+__pycache__/

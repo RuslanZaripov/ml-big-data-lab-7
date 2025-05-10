@@ -1,55 +1,105 @@
-val Http4sVersion = "0.23.30"
-val CirceVersion = "0.14.13"
-val MunitVersion = "1.1.0"
-val LogbackVersion = "1.5.18"
-val MunitCatsEffectVersion = "2.1.0"
+
+// The simplest possible sbt build file is just one line:
+
+// scalaVersion := "2.13.12"
+// That is, to create a valid sbt build, all you've got to do is define the
+// version of Scala you'd like your project to use.
+
+// ============================================================================
+
+// Lines like the above defining `scalaVersion` are called "settings". Settings
+// are key/value pairs. In the case of `scalaVersion`, the key is "scalaVersion"
+// and the value is "2.13.12"
+
+// It's possible to define many kinds of settings, such as:
+
+// name := "hello-world"
+// organization := "ch.epfl.scala"
+// version := "1.0"
+
+// Note, it's not required for you to define these three settings. These are
+// mostly only necessary if you intend to publish your library's binaries on a
+// place like Sonatype.
+
+
+// Want to use a published library in your project?
+// You can define other libraries as dependencies in your build like this:
+
+// libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "2.3.0"
+
+// Here, `libraryDependencies` is a set of dependencies, and by using `+=`,
+// we're adding the scala-parser-combinators dependency to the set of dependencies
+// that sbt will go and fetch when it starts up.
+// Now, in any Scala file, you can import classes, objects, etc., from
+// scala-parser-combinators with a regular import.
+
+// TIP: To find the "dependency" that you need to add to the
+// `libraryDependencies` set, which in the above example looks like this:
+
+// "org.scala-lang.modules" %% "scala-parser-combinators" % "2.3.0"
+
+// You can use Scaladex, an index of all known published Scala libraries. There,
+// after you find the library you want, you can just copy/paste the dependency
+// information that you need into your build file. For example, on the
+// scala/scala-parser-combinators Scaladex page,
+// https://index.scala-lang.org/scala/scala-parser-combinators, you can copy/paste
+// the sbt dependency from the sbt box on the right-hand side of the screen.
+
+// IMPORTANT NOTE: while build files look _kind of_ like regular Scala, it's
+// important to note that syntax in *.sbt files doesn't always behave like
+// regular Scala. For example, notice in this build file that it's not required
+// to put our settings into an enclosing object or class. Always remember that
+// sbt is a bit different, semantically, than vanilla Scala.
+
+// ============================================================================
+
+// Most moderately interesting Scala projects don't make use of the very simple
+// build file style (called "bare style") used in this build.sbt file. Most
+// intermediate Scala projects make use of so-called "multi-project" builds. A
+// multi-project build makes it possible to have different folders which sbt can
+// be configured differently for. That is, you may wish to have different
+// dependencies or different testing frameworks defined for different parts of
+// your codebase. Multi-project builds make this possible.
+
+// Here's a quick glimpse of what a multi-project build looks like for this
+// build, with only one "subproject" defined, called `root`:
+
+// lazy val root = (project in file(".")).
+//   settings(
+//     inThisBuild(List(
+//       organization := "ch.epfl.scala",
+//       scalaVersion := "2.13.12"
+//     )),
+//     name := "hello-world"
+//   )
+
+// To learn more about multi-project builds, head over to the official sbt
+// documentation at http://www.scala-sbt.org/documentation.html
+
 val SparkVersion = "3.5.1"
 val PureConfig = "0.17.1"
 
 lazy val root = (project in file("."))
   .settings(
-    organization := "com.example",
-    name := "data-mart",
+    organization := "ch.epfl.scala",
+    name := "datamart",
     version := "0.0.1-SNAPSHOT",
-    scalaVersion := "2.13.16",
-    useCoursier := false,
+    scalaVersion := "2.12.15",
     libraryDependencies ++= Seq(
-      "org.http4s" %% "http4s-ember-server" % Http4sVersion,
-      "org.http4s" %% "http4s-ember-client" % Http4sVersion,
-      "org.http4s" %% "http4s-circe" % Http4sVersion,
-      "org.http4s" %% "http4s-dsl" % Http4sVersion,
-      "io.circe" %% "circe-generic" % CirceVersion,
-      "org.scalameta" %% "munit" % MunitVersion % Test,
-      "org.typelevel" %% "munit-cats-effect" % MunitCatsEffectVersion % Test,
-      "ch.qos.logback" % "logback-classic" % LogbackVersion % Runtime,
       "org.apache.spark" %% "spark-core" % SparkVersion,
       "org.apache.spark" %% "spark-sql" % SparkVersion,
-      "com.github.pureconfig" %% "pureconfig" % PureConfig
+      "com.github.pureconfig" %% "pureconfig" % PureConfig,
+      "com.clickhouse" % "clickhouse-jdbc" % "0.8.5" classifier "all",
+      "com.clickhouse.spark" %% "clickhouse-spark-runtime-3.5" % "0.8.1",
+    //   "com.clickhouse" % "clickhouse-client" % "0.7.0",
+    //   "com.clickhouse" % "clickhouse-http-client" % "0.7.0",
+    //   "org.apache.httpcomponents.client5" % "httpclient5" % "5.2.1",
+    //   "com.clickhouse" % "clickhouse-jdbc" % {{ clickhouse_jdbc_version }} classifier "all",
+    //   "com.clickhouse.spark" %% clickhouse-spark-runtime-{{ spark_binary_version }}_{{ scala_binary_version }} % {{ stable_version }},
     ),
-    scalacOptions ++= Seq(
-      "-Ywarn-unused:imports"
-    ),
-    run / fork := true,
-    run / javaOptions ++= Seq(
-      "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED",
-      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
-    ),
-    addCompilerPlugin(
-      "org.typelevel" %% "kind-projector" % "0.13.3" cross CrossVersion.full
-    ),
-    addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
     assembly / assemblyMergeStrategy := {
-      case "module-info.class" => MergeStrategy.discard
-      case x => (assembly / assemblyMergeStrategy).value.apply(x)
+        case PathList("META-INF", _*) => MergeStrategy.discard
+        case _                        => MergeStrategy.first
     },
-    mainClass in Compile := Some("com.example.datamart.Main"),
-    dockerBaseImage := "sbtscala/scala-sbt:eclipse-temurin-23.0.2_7_1.10.11_3.6.4",
-    dockerUpdateLatest := true,
-    dockerEnvVars := Map(
-      "SBT_OPTS" -> "-Xmx3G -Xms2G",
-      "JAVA_OPTS" -> "-Xmx4G -Xms3G"
-    )
+    assembly / assemblyJarName := "assemblyApp.jar",
   )
-
-enablePlugins(JavaAppPackaging)
-enablePlugins(DockerPlugin)

@@ -36,14 +36,13 @@ class Clusterizer():
         self.PASSWORD = os.environ["CLICKHOUSE_PASSWORD"]
         self.DATABASE = os.environ["CLICKHOUSE_DATABASE"]
         PROTOCOL = os.environ["CLICKHOUSE_PROTOCOL"]
-        self.TABLE = "openfoodfacts"
+        self.TABLE = "openfoodfacts_proc"
         spark_config_apth = 'conf/spark.ini'
         self.numParitions = numParitions # from 1 to 100
         socket_timeout = 300000
         
         self.useful_cols = [
             'code',
-            'energy_kcal_100g',
             'fat_100g',
             'carbohydrates_100g',
             'sugars_100g',
@@ -66,51 +65,20 @@ class Clusterizer():
         self.log.info(f"Spark App Configuration Params:\n{params_str}")
             
         self.spark = SparkSession.builder.config(conf=conf) \
-            .config("spark.sql.catalog.clickhouse.host", IP_ADDRESS) \
-            .config("spark.sql.catalog.clickhouse.protocol", PROTOCOL) \
-            .config("spark.sql.catalog.clickhouse.http_port", PORT) \
-            .config("spark.sql.catalog.clickhouse.user", self.USER) \
-            .config("spark.sql.catalog.clickhouse.password", self.PASSWORD) \
-            .config("spark.sql.catalog.clickhouse.database", self.DATABASE) \
             .getOrCreate()
+            # .config("spark.sql.catalog.clickhouse.host", IP_ADDRESS) \
+            # .config("spark.sql.catalog.clickhouse.protocol", PROTOCOL) \
+            # .config("spark.sql.catalog.clickhouse.http_port", PORT) \
+            # .config("spark.sql.catalog.clickhouse.user", self.USER) \
+            # .config("spark.sql.catalog.clickhouse.password", self.PASSWORD) \
+            # .config("spark.sql.catalog.clickhouse.database", self.DATABASE) \
             
-        self.url = f"jdbc:clickhouse://{IP_ADDRESS}:{PORT}/{self.DATABASE}?socket_timeout={socket_timeout}"
+        self.url = f"jdbc:ch://{IP_ADDRESS}:{PORT}/{self.DATABASE}?socket_timeout={socket_timeout}"
+        self.log.info(f"jdbc connection url: {self.url}")
         self.driver = "com.clickhouse.jdbc.ClickHouseDriver"
-        self.index_col_name = "numeric_index"
-        self.query = f"""(SELECT *, rowNumberInBlock() AS {self.index_col_name} FROM {self.TABLE}) AS subquery"""
-                    
-        self.best_model = None
-        self.best_result = None
-        
-    def prepare_df(self, df):
-        processed_df = df.select(*self.useful_cols).na.drop()
-
-        for column in self.feature_cols:
-            processed_df = processed_df.withColumn(column, col(column).cast(FloatType()))
-        
-        # an energy-amount of more than 1000kcal 
-        # (the maximum amount of energy a product can have; 
-        # in this case it would conists of 100% fat)
-        processed_df = processed_df.filter(col('energy_kcal_100g') < 1000)
-        
-        # a feature (except for the energy-ones) higher than 100g
-        columns_to_filter = [c for c in processed_df.columns if c != 'energy_kcal_100g' and c not in self.metadata_cols]
-        condition = reduce(
-            lambda a, b: a & (col(b) < 100),
-            columns_to_filter,
-            col(columns_to_filter[0]) < 100 
-        )
-        processed_df = processed_df.filter(condition)
-        
-        # a feature with a negative entry
-        condition = reduce(
-            lambda a, b: a & (col(b) >= 0),
-            self.feature_cols,
-            col(self.feature_cols[0]) >= 0 
-        )
-        processed_df = processed_df.filter(condition)
-        
-        return processed_df
+        # self.index_col_name = "numeric_index"
+        # self.query = f"""(SELECT *, rowNumberInBlock() AS {self.index_col_name} FROM {self.TABLE}) AS subquery"""
+        self.query = f'select * from {self.TABLE}'
         
     def cluster(self, cluster_df):
         cluster_count = int(self.config['model']['k'])
@@ -126,45 +94,43 @@ class Clusterizer():
         score = evaluator.evaluate(cluster_df)
         return score
     
-    def save_results(self, init_df, transformed):
-        self.spark.sql(f'TRUNCATE TABLE clickhouse.{self.DATABASE}.{self.TABLE}')
-        
-        init_df.drop(self.index_col_name, 'prediction') \
-            .join(transformed.select(*self.metadata_cols, 'prediction'), on='code', how='left') \
-            .write.mode("append") \
+    def save_results(self, transformed):
+        # self.spark.sql(f'TRUNCATE TABLE clickhouse.{self.DATABASE}.{self.TABLE}')
+        transformed.select(*self.useful_cols, 'prediction').write \
             .format("jdbc") \
             .option("driver", self.driver) \
             .option("url", self.url) \
             .option("dbtable", self.TABLE) \
             .option("user", self.USER) \
             .option("password", self.PASSWORD) \
-            .option("batchsize","10000") \
+            .option("createTableOptions", "ENGINE=MergeTree() ORDER BY code") \
+            .mode("overwrite") \
             .save()
         
     
     def run(self):
-        df = self.spark.read.format('jdbc') \
+        df = self.spark.read \
+            .format('jdbc') \
             .option('driver', self.driver) \
             .option('url', self.url) \
-            .option('dbtable', self.query) \
             .option('user', self.USER) \
             .option('password', self.PASSWORD) \
-            .option("partitionColumn", self.index_col_name) \
-            .option("lowerBound", "1") \
-            .option("upperBound", "100") \
-            .option("numPartitions", self.numParitions) \
-            .option("fetchsize","10000") \
+            .option('query', self.query) \
             .load()
+            # .option("partitionColumn", self.index_col_name) \
+            # .option("lowerBound", "1") \
+            # .option("upperBound", "100") \
+            # .option("numPartitions", self.numParitions) \
+            # .option("fetchsize","10000") \
   
         df.cache()
             
-        processed_df = self.prepare_df(df)   
-        self.log.info(f"{processed_df.count()} lines left after preprocessing")
+        self.log.info(f"{df.count()} loaded lines count")
         
         cluster_df = VectorAssembler(
             inputCols=self.feature_cols, 
             outputCol="features"
-        ).transform(processed_df)
+        ).transform(df)
         
         model = self.cluster(cluster_df)
         self.log.info(f"Class distribution: {model.summary.clusterSizes}")
@@ -174,7 +140,7 @@ class Clusterizer():
         score = self.evaluate(pred_df)
         self.log.info(f"Silhouette Score: {score}")
          
-        self.save_results(df, pred_df)
+        self.save_results(pred_df)
         self.log.info('Results saved successfully!')
         
         self.log.info('Stopping spark app...')
